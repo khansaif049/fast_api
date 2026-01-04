@@ -1,6 +1,6 @@
 from pydantic import BaseModel,Field,AnyUrl,field_validator,model_validator,computed_field,EmailStr
 from typing import Annotated,Literal,Optional
-from uuid import UUID
+from uuid import UUID,uuid4
 from datetime import datetime
 
 
@@ -30,7 +30,7 @@ class Seller(BaseModel):
         return value
 
 class Product(BaseModel):
-    id:UUID
+    id:UUID 
     sku:Annotated[str,Field(min_length=6,max_length=30,title="Sku",
     description="stock keeping unit",
     examples=["123-123123"])]
