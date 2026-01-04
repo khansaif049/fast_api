@@ -1,7 +1,33 @@
-from pydantic import BaseModel,Field,AnyUrl
+from pydantic import BaseModel,Field,AnyUrl,field_validator,model_validator,computed_field,EmailStr
 from typing import Annotated,Literal,Optional
 from uuid import UUID
 from datetime import datetime
+
+
+class Seller(BaseModel):
+    id:UUID
+    name:Annotated[
+        str,
+        Field(
+            min_length=2,
+            max_length=60,
+            title="Seller Name",
+            description="Name of the seller (2-60)",
+            examples=["mistore.in","Apple Store Mumbai"]
+        )
+    ]
+    email:EmailStr
+    website:AnyUrl
+
+
+    @field_validator("email",mode="after")
+    @classmethod
+    def validate_seller_email_format(cls,value:EmailStr):
+        allowed_domains =['mistore.in',"hpstore.in"]
+        domain = str(value).split('@')[-1].lower()
+        if domain not in allowed_domains:
+            raise ValueError("domain not allowed : {domain}")
+        return value
 
 class Product(BaseModel):
     id:UUID
@@ -75,5 +101,33 @@ class Product(BaseModel):
     ]
 
     #dimension_cm
-    #seller
+    seller:Seller
     created_at:datetime
+
+    @field_validator("sku",mode="after")
+    @classmethod
+    def validate_sku_format(cls,value:str):
+        if "-" not in value:
+            raise ValueError("Sku must have '-'")
+        last = value.split("-")[-1]
+        if not len(last) ==3 and last.isdigit():
+            raise ValueError("Sku must ends with 3 digit seq like this -234")
+        
+        return value
+        
+    @model_validator(mode="after")
+    @classmethod
+    def validate_business_rules(cls,model:"Product"):
+        if model.stock == 0 and model.is_active is True:
+            raise ValueError("if stock is 0 active must be False")
+        
+        if model.discount_percent>0 and model.rating == 0:
+            raise ValueError("Discountedr price must have rating != 0")
+        
+        return model
+        
+
+    @computed_field
+    @property
+    def final_price(self) -> float:
+        return round(self.prices*(1-self.discount_percent/100),2)
